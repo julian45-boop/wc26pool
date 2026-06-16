@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>WC26 Pool</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg:      #ffffff;
+  --surface: #f4f5f7;
+  --card:    #ffffff;
+  --line:    #e4e6eb;
+  --gold:    #b8860b;
+  --golddim: rgba(184,134,11,.09);
+  --red:     #dc2626;
+  --text:    #111827;
+  --dim:     #6b7280;
+  --p0: #2563eb;
+  --p1: #dc2626;
+  --p2: #7c3aed;
+  --p3: #059669;
+  --nav-h: 64px;
+  --top-h: 52px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+button, input, select { font-family: inherit; -webkit-appearance: none; appearance: none; }
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* ── SETUP SCREEN ── */
+#setup-overlay {
+  position: fixed; inset: 0; background: var(--surface); z-index: 500;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px 20px; overflow-y: auto;
+}
+#setup-overlay.gone { display: none; }
+.setup-box {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 28px 24px; width: 100%; max-width: 440px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.08); margin-top: 20px;
+}
+.setup-logo {
+  font-family: 'Bebas Neue', sans-serif; font-size: 11px;
+  letter-spacing: 4px; color: var(--gold); margin-bottom: 16px;
+}
+.setup-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+  line-height: 1.1; margin-bottom: 6px;
+}
+.setup-sub { font-size: 13px; color: var(--dim); margin-bottom: 24px; line-height: 1.6; }
+.setup-field { margin-bottom: 14px; }
+.setup-label {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 6px; display: block;
+}
+.setup-input {
+  width: 100%; background: var(--surface); border: 1px solid var(--line);
+  color: var(--text); padding: 13px 14px; border-radius: 10px;
+  font-size: 16px; /* 16px prevents iOS zoom */ outline: none;
+  transition: border-color .2s;
+}
+.setup-input:focus { border-color: var(--gold); }
+.setup-hint { font-size: 11px; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+.setup-btn {
+  width: 100%; padding: 16px; margin-top: 10px;
+  background: var(--gold); color: #fff; border: none; border-radius: 10px;
+  font-family: 'Bebas Neue', sans-serif; font-size: 19px; letter-spacing: 3px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.setup-btn:active { opacity: .82; }
+
+/* ── TOPBAR ── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
+  display: none; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: var(--top-h);
+}
+#topbar.show { display: flex; }
+.topbar-logo {
+  font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+  letter-spacing: 3px; color: var(--gold);
+}
+.sync-pill {
+  font-size: 11px; padding: 5px 11px; border-radius: 100px;
+  border: 1px solid var(--line); color: var(--dim);
+  display: flex; align-items: center; gap: 5px;
+}
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+.sync-dot.ok  { background: #059669; }
+.sync-dot.err { background: var(--red); }
+.sync-dot.spin { background: var(--gold); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* ── HERO ── */
+#hero {
+  display: none; text-align: center;
+  padding: 32px 20px 28px;
+  background: linear-gradient(160deg, #faf8f3 0%, #ffffff 55%);
+  border-bottom: 1px solid var(--line);
+  margin-top: var(--top-h);
+}
+#hero.show { display: block; }
+.hero-eye { font-size: 9px; letter-spacing: 5px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.hero-h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(40px, 10vw, 72px); line-height: 1; }
+.hero-h1 em { color: var(--gold); font-style: normal; }
+.hero-names { font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 6px; }
+.hero-pot {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 14px;
+  padding: 8px 20px; border-radius: 100px;
+  background: var(--golddim); border: 1px solid rgba(184,134,11,.25);
+  font-size: 13px; font-weight: 700; color: var(--gold);
+}
+
+/* ── PAGES ── */
+.page { display: none; padding-bottom: calc(var(--nav-h) + 16px); }
+.page.on { display: block; }
+.inner { max-width: 960px; margin: 0 auto; padding: 20px 16px; }
+
+/* section heading */
+.sh {
+  font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold);
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.sh::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ── BOTTOM NAV ── */
+#bottom-nav {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: var(--bg); border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+  height: var(--nav-h);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#bottom-nav.show { display: flex; }
+.bnav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 8px 0; border: none; background: transparent; color: var(--dim);
+  transition: color .15s;
+}
+.bnav-item.on { color: var(--gold); }
+.bnav-icon { font-size: 22px; line-height: 1; }
+.bnav-label { font-size: 10px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+
+/* ── LEADERBOARD ── */
+.lb-list { display: flex; flex-direction: column; gap: 10px; }
+.lb-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px; display: flex; align-items: center; gap: 14px;
+}
+.lb-card.first { border-color: var(--gold); background: #fffcf3; }
+.lb-rank-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 32px;
+  color: var(--dim); line-height: 1; min-width: 28px; text-align: center;
+}
+.lb-card.first .lb-rank-num { color: var(--gold); }
+.lb-main { flex: 1; min-width: 0; }
+.lb-pname { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.lb-pdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.lb-meta { font-size: 11px; color: var(--dim); }
+.lb-right { text-align: right; }
+.lb-pts-big { font-family: 'Bebas Neue', sans-serif; font-size: 34px; line-height: 1; }
+.lb-win-tag {
+  display: inline-block; margin-top: 3px;
+  padding: 3px 10px; border-radius: 100px;
+  font-size: 11px; font-weight: 700;
+  background: var(--golddim); color: var(--gold);
+}
+.lb-acc-bar-wrap { height: 4px; background: var(--line); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+.lb-acc-bar-fill { height: 100%; border-radius: 2px; transition: width .5s; }
+#lb-updated { font-size: 11px; color: var(--dim); text-align: center; margin-top: 16px; }
+
+/* ── GROUPS ── */
+.group-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media(max-width: 400px) { .group-grid { grid-template-columns: 1fr; } }
+.grp-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.grp-head {
+  padding: 7px 12px; background: var(--surface);
+  font-family: 'Bebas Neue', sans-serif; font-size: 12px;
+  letter-spacing: 2px; color: var(--gold);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.grp-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.grp-table th {
+  padding: 4px 8px; color: var(--dim); font-weight: 500;
+  text-align: center; font-size: 9px; background: var(--surface);
+}
+.grp-table th:first-child { text-align: left; }
+.grp-table td { padding: 7px 8px; border-top: 1px solid var(--line); text-align: center; }
+.grp-table td:first-child {
+  text-align: left; font-weight: 600;
+  display: flex; align-items: center; gap: 5px;
+}
+.grp-table tr.q-through td:first-child { border-left: 2px solid var(--gold); padding-left: 6px; }
+.grp-table tr.elim td { color: var(--dim); }
+
+/* ── PICKS ── */
+.player-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; -webkit-overflow-scrolling: touch; }
+.player-strip::-webkit-scrollbar { display: none; }
+.ptab {
+  flex-shrink: 0; padding: 9px 18px; border-radius: 100px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 2px solid var(--line); background: var(--surface);
+  color: var(--dim); -webkit-tap-highlight-color: transparent;
+  transition: all .15s; white-space: nowrap;
+}
+.ptab.on { background: var(--card); }
+
+.champ-strip {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; margin-bottom: 16px;
+}
+.champ-strip-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+.champ-scroll { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.champ-scroll::-webkit-scrollbar { display: none; }
+.champ-btn {
+  flex-shrink: 0; padding: 7px 14px; background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 100px; font-size: 12px; font-weight: 600; color: var(--dim);
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+  -webkit-tap-highlight-color: transparent; white-space: nowrap;
+}
+.champ-btn.on { color: var(--text); }
+
+.picks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media(max-width: 400px) { .picks-grid { grid-template-columns: 1fr; } }
+.pick-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.pick-head {
+  padding: 7px 12px; background: var(--surface);
+  font-family: 'Bebas Neue', sans-serif; font-size: 12px;
+  letter-spacing: 2px; color: var(--gold);
+}
+.pick-team {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-top: 1px solid var(--line); font-size: 12px; font-weight: 500;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .12s; user-select: none; min-height: 44px;
+}
+.pick-team:active { background: var(--surface); }
+.pick-team.chosen { background: var(--golddim); }
+.pick-team .tn { flex: 1; }
+.pips { display: flex; gap: 3px; }
+.pip { width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+
+/* ── SCORES ── */
+/* On mobile: full-width list, tap to open entry below */
+.match-list { display: flex; flex-direction: column; gap: 8px; }
+.match-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s;
+}
+.match-card.sel { border-color: var(--gold); background: var(--golddim); }
+.match-card:active { background: var(--surface); }
+.mc-stage { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.mc-teams { font-size: 15px; font-weight: 700; }
+.mc-score { font-size: 12px; color: var(--gold); font-weight: 600; margin-top: 3px; }
+
+/* Entry panel — slides in below match list on mobile */
+.entry-panel {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 20px 16px; margin-top: 12px; display: none;
+}
+.entry-panel.show { display: block; }
+.ep-stage { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+.ep-matchup { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; margin-bottom: 16px; }
+.ep-result-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+.ep-score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.ep-team-label { font-size: 12px; font-weight: 600; color: var(--dim); min-width: 60px; }
+.score-input {
+  width: 60px; height: 60px; text-align: center;
+  background: var(--surface); border: 2px solid var(--line);
+  color: var(--text); font-size: 28px; font-weight: 700;
+  border-radius: 10px; outline: none; transition: border-color .2s;
+}
+.score-input:focus { border-color: var(--gold); }
+.score-dash { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--dim); }
+.save-btn {
+  flex: 1; min-width: 80px; padding: 14px;
+  background: var(--gold); color: #fff; border: none; border-radius: 10px;
+  font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 2px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.save-btn:active { opacity: .82; }
+
+.preds-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+.pred-row {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; margin-bottom: 8px;
+}
+.pred-name { flex: 1; font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pred-inputs { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.pred-num {
+  width: 42px; height: 42px; text-align: center;
+  background: var(--card); border: 1.5px solid var(--line);
+  color: var(--text); font-size: 18px; font-weight: 700;
+  border-radius: 7px; outline: none; transition: border-color .2s;
+}
+.pred-num:focus { border-color: var(--gold); }
+.pred-dash { font-size: 14px; color: var(--dim); }
+.pred-verdict { font-size: 13px; min-width: 36px; text-align: right; flex-shrink: 0; }
+.correct { color: #059669; }
+.wrong   { color: var(--red); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: calc(var(--nav-h) + 12px); left: 50%;
+  transform: translateX(-50%);
+  background: #111827; color: #fff;
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; z-index: 600;
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+  white-space: nowrap; max-width: 90vw;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ── SETUP ── -->
+<div id="setup-overlay">
+  <div class="setup-box">
+    <div class="setup-logo">2026 FIFA WORLD CUP</div>
+    <div class="setup-title">Pool Setup</div>
+    <div class="setup-sub">Paste your Google Sheet Web App URL to sync picks with all players.</div>
+
+    <div class="setup-field">
+      <label class="setup-label">Google Sheet Web App URL</label>
+      <input class="setup-input" id="url-input" type="url"
+        placeholder="https://script.google.com/macros/s/…/exec"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="setup-hint">See instructions at the bottom of this page to create your sheet (3 min, one-time).</div>
+    </div>
+
+    <div class="setup-field">
+      <label class="setup-label">Your name</label>
+      <select class="setup-input" id="who-select">
+        <option value="">— Select your name —</option>
+        <option value="Julian">Julian</option>
+        <option value="Jessica">Jessica</option>
+        <option value="Tilly">Tilly</option>
+        <option value="Max">Max</option>
+      </select>
+    </div>
+
+    <button class="setup-btn" onclick="setupGo()">Connect &amp; Open →</button>
+
+    <div style="margin-top:16px;font-size:11px;color:var(--dim);text-align:center;line-height:1.6">
+      Your settings are saved on this device — you won't need to do this again.
+    </div>
+  </div>
+</div>
+
+<!-- ── TOPBAR ── -->
+<div id="topbar">
+  <div class="topbar-logo">WC26 POOL</div>
+  <div class="sync-pill" id="sync-pill">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">—</span>
+  </div>
+</div>
+
+<!-- ── HERO ── -->
+<div id="hero">
+  <div class="hero-eye">USA · Canada · Mexico</div>
+  <div class="hero-h1">2026 FIFA<br><em>World Cup</em></div>
+  <div class="hero-names">Julian · Jessica · Tilly · Max</div>
+  <div class="hero-pot" id="pot-badge">🏆 Pot: $100</div>
+</div>
+
+<!-- ── PAGES ── -->
+<div class="page on" id="page-standings">
+  <div class="inner">
+    <div class="sh">Live Standings</div>
+    <div class="lb-list" id="lb-list"></div>
+    <div id="lb-updated"></div>
+  </div>
+</div>
+
+<div class="page" id="page-groups">
+  <div class="inner">
+    <div class="sh">Group Tables</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">Gold border = qualified · Top 2 per group advance</div>
+    <div class="group-grid" id="group-grid"></div>
+  </div>
+</div>
+
+<div class="page" id="page-picks">
+  <div class="inner">
+    <div class="sh">Group Winner Picks</div>
+    <div class="player-strip" id="player-strip"></div>
+    <div class="champ-strip">
+      <div class="champ-strip-label">🏆 Champion Pick</div>
+      <div class="champ-scroll" id="champ-scroll"></div>
+    </div>
+    <div class="picks-grid" id="picks-grid"></div>
+  </div>
+</div>
+
+<div class="page" id="page-scores">
+  <div class="inner">
+    <div class="sh">Scores &amp; Predictions</div>
+    <div class="match-list" id="match-list"></div>
+    <div class="entry-panel" id="entry-panel"></div>
+  </div>
+</div>
+
+<!-- ── BOTTOM NAV ── -->
+<div id="bottom-nav">
+  <button class="bnav-item on" onclick="nav('standings')" id="bn-standings">
+    <div class="bnav-icon">🏅</div>
+    <div class="bnav-label">Standings</div>
+  </button>
+  <button class="bnav-item" onclick="nav('groups')" id="bn-groups">
+    <div class="bnav-icon">📊</div>
+    <div class="bnav-label">Groups</div>
+  </button>
+  <button class="bnav-item" onclick="nav('picks')" id="bn-picks">
+    <div class="bnav-icon">✅</div>
+    <div class="bnav-label">Picks</div>
+  </button>
+  <button class="bnav-item" onclick="nav('scores')" id="bn-scores">
+    <div class="bnav-icon">⚽</div>
+    <div class="bnav-label">Scores</div>
+  </button>
+</div>
+
+<div id="toast"></div>
+
+<!-- ── INSTRUCTIONS ── -->
+<div id="instructions" style="display:none;max-width:600px;margin:0 auto;padding:32px 20px 80px;font-size:13px;color:var(--dim);line-height:1.8;border-top:1px solid var(--line)">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin-bottom:14px">Google Sheets Setup</div>
+  <ol style="padding-left:18px;display:flex;flex-direction:column;gap:8px">
+    <li>Go to <strong style="color:var(--text)">sheets.google.com</strong> → create a new blank sheet → rename the tab <strong style="color:var(--text)">data</strong></li>
+    <li>Tap <strong style="color:var(--text)">Extensions → Apps Script</strong> (use desktop mode in browser)</li>
+    <li>Delete existing code and paste the script below → Save</li>
+    <li>Tap <strong style="color:var(--text)">Deploy → New deployment → Web app</strong></li>
+    <li>Execute as: <strong style="color:var(--text)">Me</strong> · Who has access: <strong style="color:var(--text)">Anyone</strong> → Deploy → Authorize</li>
+    <li>Copy the Web App URL and paste it above</li>
+  </ol>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--gold);margin:20px 0 8px">Apps Script Code</div>
+  <pre style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;font-size:11px;overflow-x:auto;white-space:pre;color:#374151;line-height:1.7">function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('data');
+  var cell = sh.getRange('A1').getValue();
+  return ContentService
+    .createTextOutput(cell ? cell : '{}')
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('data');
+  sh.getRange('A1').setValue(e.postData.contents);
+  return ContentService
+    .createTextOutput('ok')
+    .setMimeType(ContentService.MimeType.TEXT);
+}</pre>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════
+const PLAYERS  = ['Julian','Jessica','Tilly','Max'];
+const PCOLORS  = ['#2563eb','#dc2626','#7c3aed','#059669'];
+const POT      = 100;
+
+const GROUPS = {
+  A:[{f:'🇺🇸',n:'USA'},{f:'🇲🇽',n:'Mexico'},{f:'🇺🇾',n:'Uruguay'},{f:'🏳️',n:'TBD A4'}],
+  B:[{f:'🇦🇷',n:'Argentina'},{f:'🇨🇱',n:'Chile'},{f:'🇵🇪',n:'Peru'},{f:'🏳️',n:'TBD B4'}],
+  C:[{f:'🇧🇷',n:'Brazil'},{f:'🇨🇴',n:'Colombia'},{f:'🇵🇾',n:'Paraguay'},{f:'🏳️',n:'TBD C4'}],
+  D:[{f:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',n:'England'},{f:'🇮🇷',n:'Iran'},{f:'🏴󠁧󠁢󠁷󠁬󠁳󠁿',n:'Wales'},{f:'🏳️',n:'TBD D4'}],
+  E:[{f:'🇫🇷',n:'France'},{f:'🇩🇰',n:'Denmark'},{f:'🇹🇳',n:'Tunisia'},{f:'🏳️',n:'TBD E4'}],
+  F:[{f:'🇪🇸',n:'Spain'},{f:'🇩🇪',n:'Germany'},{f:'🇯🇵',n:'Japan'},{f:'🏳️',n:'TBD F4'}],
+  G:[{f:'🇵🇹',n:'Portugal'},{f:'🇬🇭',n:'Ghana'},{f:'🏳️',n:'TBD G3'},{f:'🏳️',n:'TBD G4'}],
+  H:[{f:'🇵🇱',n:'Poland'},{f:'🇸🇦',n:'Saudi Arabia'},{f:'🏳️',n:'TBD H3'},{f:'🏳️',n:'TBD H4'}],
+  I:[{f:'🇧🇪',n:'Belgium'},{f:'🇨🇦',n:'Canada'},{f:'🇲🇦',n:'Morocco'},{f:'🏳️',n:'TBD I4'}],
+  J:[{f:'🇳🇱',n:'Netherlands'},{f:'🇸🇳',n:'Senegal'},{f:'🇪🇨',n:'Ecuador'},{f:'🏳️',n:'TBD J4'}],
+  K:[{f:'🇰🇷',n:'South Korea'},{f:'🇨🇲',n:'Cameroon'},{f:'🏳️',n:'TBD K3'},{f:'🏳️',n:'TBD K4'}],
+  L:[{f:'🇨🇭',n:'Switzerland'},{f:'🇷🇸',n:'Serbia'},{f:'🇦🇹',n:'Austria'},{f:'🏳️',n:'TBD L4'}],
+};
+
+const ALL_TEAMS = Object.values(GROUPS).flat().filter(t=>!t.n.startsWith('TBD'));
+
+const MATCHES = [
+  {id:'gA1',stage:'Group A',home:'USA',away:'Mexico',date:'Jun 11'},
+  {id:'gA2',stage:'Group A',home:'Uruguay',away:'TBD A4',date:'Jun 11'},
+  {id:'gA3',stage:'Group A',home:'USA',away:'Uruguay',date:'Jun 15'},
+  {id:'gA4',stage:'Group A',home:'Mexico',away:'TBD A4',date:'Jun 15'},
+  {id:'gB1',stage:'Group B',home:'Argentina',away:'Chile',date:'Jun 12'},
+  {id:'gB2',stage:'Group B',home:'Peru',away:'TBD B4',date:'Jun 12'},
+  {id:'gC1',stage:'Group C',home:'Brazil',away:'Colombia',date:'Jun 13'},
+  {id:'gD1',stage:'Group D',home:'England',away:'Iran',date:'Jun 14'},
+  {id:'gE1',stage:'Group E',home:'France',away:'Denmark',date:'Jun 14'},
+  {id:'gF1',stage:'Group F',home:'Spain',away:'Germany',date:'Jun 15'},
+  {id:'gG1',stage:'Group G',home:'Portugal',away:'Ghana',date:'Jun 16'},
+  {id:'gH1',stage:'Group H',home:'Poland',away:'Saudi Arabia',date:'Jun 17'},
+  {id:'gI1',stage:'Group I',home:'Belgium',away:'Canada',date:'Jun 18'},
+  {id:'gJ1',stage:'Group J',home:'Netherlands',away:'Senegal',date:'Jun 18'},
+  {id:'gK1',stage:'Group K',home:'South Korea',away:'Cameroon',date:'Jun 19'},
+  {id:'gL1',stage:'Group L',home:'Switzerland',away:'Serbia',date:'Jun 19'},
+  {id:'r32a',stage:'Round of 32',home:'1A',away:'2B',date:'Jul 3'},
+  {id:'r32b',stage:'Round of 32',home:'1C',away:'2D',date:'Jul 3'},
+  {id:'r16a',stage:'Round of 16',home:'TBD',away:'TBD',date:'Jul 8'},
+  {id:'r16b',stage:'Round of 16',home:'TBD',away:'TBD',date:'Jul 9'},
+  {id:'qf1', stage:'Quarter Final',home:'TBD',away:'TBD',date:'Jul 13'},
+  {id:'qf2', stage:'Quarter Final',home:'TBD',away:'TBD',date:'Jul 14'},
+  {id:'sf1', stage:'Semi Final',home:'TBD',away:'TBD',date:'Jul 18'},
+  {id:'sf2', stage:'Semi Final',home:'TBD',away:'TBD',date:'Jul 19'},
+  {id:'fin', stage:'🏆 Final',home:'TBD',away:'TBD',date:'Jul 23'},
+];
+
+const STAGE_PTS = {'Group':1,'Round of 32':1,'Round of 16':2,'Quarter Final':4,'Semi Final':8,'🏆 Final':16};
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let state = { picks:{}, champions:{}, preds:{}, results:{}, groups:{} };
+let sheetUrl = '';
+let myName   = '';
+let activeMatch = null;
+let pickPlayer  = 0;
+let syncTimer   = null;
+
+// ══════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════
+function setupGo() {
+  const url = document.getElementById('url-input').value.trim();
+  const who = document.getElementById('who-select').value;
+  if (!url || !who) { toast('Fill in both fields'); return; }
+  sheetUrl = url; myName = who;
+  localStorage.setItem('wc26_url', url);
+  localStorage.setItem('wc26_who', who);
+  launch();
+}
+
+function launch() {
+  document.getElementById('setup-overlay').classList.add('gone');
+  document.getElementById('instructions').style.display = 'block';
+  document.getElementById('topbar').classList.add('show');
+  document.getElementById('hero').classList.add('show');
+  document.getElementById('bottom-nav').classList.add('show');
+  syncDown().then(() => { renderAll(); startSyncLoop(); });
+}
+
+// ══════════════════════════════════════
+// SYNC
+// ══════════════════════════════════════
+function setSyncStatus(s) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + (s==='ok'?'ok':s==='err'?'err':'spin');
+  lbl.textContent = s==='ok'?'Synced':s==='err'?'Offline':'Syncing…';
+}
+
+async function syncDown() {
+  setSyncStatus('spin');
+  try {
+    const r = await fetch(sheetUrl + '?nocache=' + Date.now());
+    if (!r.ok) throw new Error();
+    const txt = await r.text();
+    const rem = (txt && txt !== 'null' && txt !== '{}') ? JSON.parse(txt) : {};
+    state.picks     = rem.picks     || {};
+    state.champions = rem.champions || {};
+    state.preds     = rem.preds     || {};
+    state.results   = rem.results   || {};
+    state.groups    = rem.groups    || {};
+    setSyncStatus('ok');
+    renderAll();
+  } catch(e) { setSyncStatus('err'); }
+}
+
+async function syncUp() {
+  setSyncStatus('spin');
+  try {
+    await fetch(sheetUrl, {
+      method: 'POST',
+      body: JSON.stringify(state),
+      headers: {'Content-Type':'application/json'},
+    });
+    setSyncStatus('ok');
+    toast('Saved ✓');
+  } catch(e) {
+    setSyncStatus('err');
+    toast('Sync failed — check connection');
+  }
+}
+
+function startSyncLoop() {
+  clearInterval(syncTimer);
+  syncTimer = setInterval(syncDown, 30000);
+}
+
+// ══════════════════════════════════════
+// NAV
+// ══════════════════════════════════════
+function nav(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('on'));
+  document.getElementById('page-' + id).classList.add('on');
+  document.getElementById('bn-' + id).classList.add('on');
+  window.scrollTo(0, 0);
+  if (id === 'picks')     renderPicks();
+  if (id === 'scores')    renderScores();
+  if (id === 'groups')    renderGroups();
+  if (id === 'standings') renderStandings();
+}
+
+function renderAll() {
+  renderStandings();
+  renderGroups();
+  renderPicks();
+  renderScores();
+}
+
+// ══════════════════════════════════════
+// STANDINGS
+// ══════════════════════════════════════
+function calcScore(pname) {
+  let pts = 0, correct = 0, total = 0;
+  MATCHES.forEach(m => {
+    const r    = state.results[m.id];
+    const pred = (state.preds[pname]||{})[m.id];
+    if (!r?.played || !pred || pred.h==='' || pred.a==='') return;
+    total++;
+    const rH=parseInt(r.h), rA=parseInt(r.a);
+    const pH=parseInt(pred.h), pA=parseInt(pred.a);
+    const rW = rH>rA?m.home:rH<rA?m.away:'Draw';
+    const pW = pH>pA?m.home:pH<pA?m.away:'Draw';
+    if (pW===rW) {
+      correct++;
+      const base = STAGE_PTS[m.stage.replace(/ \d+$/,'').trim()] || 1;
+      pts += (pH===rH && pA===rA) ? base*2 : base;
+    }
+  });
+  pts += Object.keys(state.picks[pname]||{}).length * 0.5;
+  return {pts, correct, total};
+}
+
+function renderStandings() {
+  const rows = PLAYERS.map((p,i) => {
+    const {pts,correct,total} = calcScore(p);
+    const champ = state.champions[p];
+    const ct = champ ? ALL_TEAMS.find(t=>t.n===champ) : null;
+    return {name:p, color:PCOLORS[i], pts, correct, total, ct};
+  }).sort((a,b)=>b.pts-a.pts);
+
+  const totalPts = rows.reduce((s,r)=>s+r.pts,0)||1;
+  const el = document.getElementById('lb-list');
+  el.innerHTML = rows.map((r,rank) => {
+    const acc = r.total>0 ? Math.round(r.correct/r.total*100) : 0;
+    const est = (r.pts/totalPts*POT).toFixed(0);
+    return `<div class="lb-card ${rank===0?'first':''}">
+      <div class="lb-rank-num">${rank+1}</div>
+      <div class="lb-main">
+        <div class="lb-pname">
+          <div class="lb-pdot" style="background:${r.color}"></div>
+          ${r.name}
+        </div>
+        <div class="lb-meta">${r.ct?r.ct.f+' '+r.ct.n:'No champion pick'} · ${r.correct}/${r.total} correct</div>
+        <div class="lb-acc-bar-wrap" style="margin-top:6px">
+          <div class="lb-acc-bar-fill" style="width:${acc}%;background:${r.color}"></div>
+        </div>
+      </div>
+      <div class="lb-right">
+        <div class="lb-pts-big" style="color:${r.color}">${r.pts.toFixed(1)}</div>
+        <div class="lb-win-tag">$${est}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const played = MATCHES.filter(m=>(state.results[m.id]||{}).played).length;
+  document.getElementById('lb-updated').textContent =
+    `${played}/${MATCHES.length} matches played · syncs every 30s`;
+}
+
+// ══════════════════════════════════════
+// GROUPS
+// ══════════════════════════════════════
+function renderGroups() {
+  const el = document.getElementById('group-grid');
+  el.innerHTML = Object.entries(GROUPS).map(([grp, teams]) => {
+    const stats = state.groups[grp] || {};
+    const rows = teams.map(t => {
+      const s = stats[t.n] || {w:0,d:0,l:0,gf:0,ga:0};
+      return {...t, ...s, pts: s.w*3+s.d, gd: s.gf-s.ga};
+    }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+
+    return `<div class="grp-card">
+      <div class="grp-head">GROUP ${grp}</div>
+      <table class="grp-table">
+        <thead><tr><th>Team</th><th>W</th><th>D</th><th>L</th><th>Pts</th></tr></thead>
+        <tbody>${rows.map((t,i)=>`
+          <tr class="${i<2?'q-through':''}">
+            <td><span style="font-size:14px">${t.f}</span>${t.n.replace(/TBD .*/,'TBD')}</td>
+            <td>${t.w||0}</td><td>${t.d||0}</td><td>${t.l||0}</td>
+            <td><strong>${t.pts}</strong></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// PICKS
+// ══════════════════════════════════════
+function renderPicks() {
+  // Player strip
+  const strip = document.getElementById('player-strip');
+  strip.innerHTML = PLAYERS.map((p,i)=>`
+    <button class="ptab ${i===pickPlayer?'on':''}"
+      style="${i===pickPlayer?'border-color:'+PCOLORS[i]+';background:'+hexAlpha(PCOLORS[i],.08)+';color:'+PCOLORS[i]:''}"
+      onclick="pickPlayer=${i};renderPicks()">${p}</button>
+  `).join('');
+
+  const pname = PLAYERS[pickPlayer];
+  const myPicks = state.picks[pname] || {};
+  const myChamp = state.champions[pname] || null;
+
+  // Champion scroll
+  const cs = document.getElementById('champ-scroll');
+  cs.innerHTML = ALL_TEAMS.map(t=>`
+    <button class="champ-btn ${myChamp===t.n?'on':''}"
+      style="${myChamp===t.n?'border-color:'+PCOLORS[pickPlayer]+';background:'+hexAlpha(PCOLORS[pickPlayer],.1)+';color:'+PCOLORS[pickPlayer]:''}"
+      onclick="setChampion('${esc(t.n)}')">
+      <span>${t.f}</span>${t.n}
+    </button>
+  `).join('');
+
+  // Picks grid
+  const grid = document.getElementById('picks-grid');
+  grid.innerHTML = Object.entries(GROUPS).map(([grp, teams])=>{
+    const myPick = myPicks[grp];
+    return `<div class="pick-card">
+      <div class="pick-head">GROUP ${grp}</div>
+      ${teams.map(t=>{
+        const chosen = myPick===t.n;
+        const pips = PLAYERS.map((pl,i)=>`
+          <div class="pip" style="${(state.picks[pl]||{})[grp]===t.n?'background:'+PCOLORS[i]:''}"></div>
+        `).join('');
+        return `<div class="pick-team ${chosen?'chosen':''}"
+          style="${chosen?'border-left:2px solid '+PCOLORS[pickPlayer]:''}"
+          onclick="setPick('${grp}','${esc(t.n)}')">
+          <span style="font-size:16px">${t.f}</span>
+          <span class="tn">${t.n.replace(/TBD .*/,'TBD')}</span>
+          <div class="pips">${pips}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function setPick(grp, team) {
+  const pname = PLAYERS[pickPlayer];
+  if (!state.picks[pname]) state.picks[pname] = {};
+  state.picks[pname][grp] = state.picks[pname][grp]===team ? undefined : team;
+  if (!state.picks[pname][grp]) delete state.picks[pname][grp];
+  renderPicks(); syncUp();
+}
+
+function setChampion(team) {
+  const pname = PLAYERS[pickPlayer];
+  state.champions[pname] = state.champions[pname]===team ? null : team;
+  renderPicks(); renderStandings(); syncUp();
+}
+
+// ══════════════════════════════════════
+// SCORES
+// ══════════════════════════════════════
+function renderScores() {
+  const el = document.getElementById('match-list');
+  el.innerHTML = MATCHES.map(m=>{
+    const r = state.results[m.id];
+    const played = r?.played;
+    return `<div class="match-card ${activeMatch===m.id?'sel':''}" onclick="selMatch('${m.id}')">
+      <div class="mc-stage">${m.stage} · ${m.date}</div>
+      <div class="mc-teams">${m.home} <span style="color:var(--dim);font-weight:400">vs</span> ${m.away}</div>
+      ${played?`<div class="mc-score">${r.h} – ${r.a}</div>`:''}
+    </div>`;
+  }).join('');
+
+  if (activeMatch) renderEntry(activeMatch);
+}
+
+function selMatch(id) {
+  activeMatch = id;
+  renderScores();
+  // Scroll entry panel into view
+  setTimeout(()=>{
+    const ep = document.getElementById('entry-panel');
+    if (ep) ep.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 80);
+}
+
+function renderEntry(id) {
+  const m = MATCHES.find(x=>x.id===id);
+  if (!m) return;
+  const r = state.results[id] || {h:'',a:'',played:false};
+  const ep = document.getElementById('entry-panel');
+  ep.classList.add('show');
+
+  const rH=parseInt(r.h), rA=parseInt(r.a);
+  const rWin = r.played ? (rH>rA?m.home:rH<rA?m.away:'Draw') : null;
+  const stageKey = m.stage.replace(/ \d+$/,'').trim();
+
+  const predRows = PLAYERS.map((pname,pi)=>{
+    const pred = (state.preds[pname]||{})[id] || {h:'',a:''};
+    const pH=parseInt(pred.h), pA=parseInt(pred.a);
+    const pWin = (!isNaN(pH)&&!isNaN(pA)) ? (pH>pA?m.home:pH<pA?m.away:'Draw') : null;
+    let correct = null;
+    if (rWin && pWin!==null) correct = pWin===rWin;
+    const exact = r.played && pred.h!=='' && pred.a!=='' && parseInt(pred.h)===rH && parseInt(pred.a)===rA;
+    return `<div class="pred-row">
+      <div class="pip" style="background:${PCOLORS[pi]};width:9px;height:9px;border-radius:50%;flex-shrink:0"></div>
+      <div class="pred-name" style="color:${PCOLORS[pi]}">${pname}</div>
+      <div class="pred-inputs">
+        <input class="pred-num" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" placeholder="0"
+          value="${pred.h!==''?pred.h:''}"
+          oninput="updPred('${pname}','${id}','h',this.value)">
+        <span class="pred-dash">–</span>
+        <input class="pred-num" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="20" placeholder="0"
+          value="${pred.a!==''?pred.a:''}"
+          oninput="updPred('${pname}','${id}','a',this.value)">
+      </div>
+      <div class="pred-verdict ${correct===true?'correct':correct===false?'wrong':''}">
+        ${correct===true?(exact?'⭐':'✓'):correct===false?'✗':pWin||'—'}
+      </div>
+    </div>`;
+  }).join('');
+
+  ep.innerHTML = `
+    <div class="ep-stage">${m.stage} · ${m.date}</div>
+    <div class="ep-matchup">${m.home} <span style="color:var(--dim)">vs</span> ${m.away}</div>
+    <div class="ep-result-label">Official Result</div>
+    <div class="ep-score-row">
+      <div class="ep-team-label">${m.home}</div>
+      <input class="score-input" id="sh" type="number" inputmode="numeric" pattern="[0-9]*"
+        min="0" max="20" placeholder="0" value="${r.h!==''?r.h:''}">
+      <span class="score-dash">–</span>
+      <input class="score-input" id="sa" type="number" inputmode="numeric" pattern="[0-9]*"
+        min="0" max="20" placeholder="0" value="${r.a!==''?r.a:''}">
+      <div class="ep-team-label" style="text-align:right">${m.away}</div>
+      <button class="save-btn" onclick="saveResult('${id}','${esc(m.home)}','${esc(m.away)}','${stageKey}')">Save</button>
+    </div>
+    <div class="preds-label">Predictions <span style="color:var(--dim);font-size:9px">⭐ exact score</span></div>
+    ${predRows}
+  `;
+}
+
+function updPred(pname, matchId, side, val) {
+  if (!state.preds[pname]) state.preds[pname] = {};
+  if (!state.preds[pname][matchId]) state.preds[pname][matchId] = {h:'',a:''};
+  state.preds[pname][matchId][side] = val;
+  clearTimeout(updPred._t);
+  updPred._t = setTimeout(syncUp, 1400);
+}
+
+function saveResult(id, home, away, stageKey) {
+  const h = document.getElementById('sh').value;
+  const a = document.getElementById('sa').value;
+  if (h===''||a==='') { toast('Enter both scores'); return; }
+  state.results[id] = {h:parseInt(h), a:parseInt(a), played:true};
+  // update group stats
+  if (stageKey === 'Group') {
+    const m = MATCHES.find(x=>x.id===id);
+    const grp = m.stage.split(' ')[1];
+    updGroupStat(grp, home, parseInt(h), parseInt(a));
+    updGroupStat(grp, away, parseInt(a), parseInt(h));
+  }
+  syncUp().then(()=>renderAll());
+}
+
+function updGroupStat(grp, team, gf, ga) {
+  if (!state.groups[grp]) state.groups[grp] = {};
+  if (!state.groups[grp][team]) state.groups[grp][team] = {w:0,d:0,l:0,gf:0,ga:0};
+  const s = state.groups[grp][team];
+  s.gf+=gf; s.ga+=ga;
+  if(gf>ga) s.w++; else if(gf===ga) s.d++; else s.l++;
+}
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+function esc(s){ return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+function hexAlpha(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+// ══════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════
+(function boot() {
+  sheetUrl = localStorage.getItem('wc26_url') || '';
+  myName   = localStorage.getItem('wc26_who') || '';
+  if (sheetUrl) document.getElementById('url-input').value = sheetUrl;
+  if (myName)   document.getElementById('who-select').value = myName;
+  if (sheetUrl && myName) launch();
+})();
+</script>
+</body>
+</html>
