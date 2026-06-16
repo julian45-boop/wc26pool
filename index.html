@@ -261,6 +261,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 <script>
 // ══════════════════════════════════════
+// LOCAL BACKUP — saves instantly to device
+// even before sheet sync completes
+// ══════════════════════════════════════
+function saveLocal() {
+  try { localStorage.setItem('wc26_state', JSON.stringify(state)); } catch(e){}
+}
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem('wc26_state');
+    if (raw) {
+      const saved = JSON.parse(raw);
+      state.picks     = saved.picks     || {};
+      state.champions = saved.champions || {};
+      state.preds     = saved.preds     || {};
+      state.results   = saved.results   || {};
+      state.groups    = saved.groups    || {};
+    }
+  } catch(e){}
+}
+
+// ══════════════════════════════════════
 // LIVE DATA — openfootball/worldcup.json
 // Free, no API key, updated ~daily
 // ══════════════════════════════════════
@@ -509,13 +530,19 @@ function launch() {
   document.getElementById('topbar').classList.add('show');
   document.getElementById('hero').classList.add('show');
   document.getElementById('bottom-nav').classList.add('show');
-  // First sync picks from Google Sheet, then pull live scores
-  syncDown().then(() => {
-    mergePresetResults();
-    fetchLiveScores(); // auto-fetch real scores on open
-    renderAll();
-    startSyncLoop();
-  });
+
+  // 1. Load picks from localStorage IMMEDIATELY — user sees their data right away
+  loadLocal();
+  renderAll();
+
+  // 2. Fetch live scores in background — updates groups/results when ready
+  fetchLiveScores();
+
+  // 3. Sync picks with Google Sheet in background — merges other players' picks
+  syncDown();
+
+  // 4. Start background loops
+  startSyncLoop();
 }
 
 // Merge preset results into state without overwriting manually entered ones
@@ -535,47 +562,97 @@ function mergePresetResults() {
 }
 
 // ══════════════════════════════════════
-// SYNC
+// LOCAL STORAGE — primary fallback
 // ══════════════════════════════════════
-function setSyncStatus(s) {
+function saveLocal() {
+  try {
+    // Only save picks/champions/preds — not results (those come from live feed)
+    const toSave = {
+      picks: state.picks,
+      champions: state.champions,
+      preds: state.preds,
+    };
+    localStorage.setItem('wc26_state', JSON.stringify(toSave));
+  } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem('wc26_state');
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    // Restore picks immediately — before any network call
+    if (saved.picks)     state.picks     = saved.picks;
+    if (saved.champions) state.champions = saved.champions;
+    if (saved.preds)     state.preds     = saved.preds;
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════
+// SYNC — Google Sheet
+// ══════════════════════════════════════
+function setSyncStatus(s, msg) {
   const dot=document.getElementById('sync-dot'), lbl=document.getElementById('sync-label');
   dot.className='sync-dot '+(s==='ok'?'ok':s==='err'?'err':'spin');
-  lbl.textContent=s==='ok'?'Synced':s==='err'?'Offline':'Syncing…';
+  lbl.textContent = msg||(s==='ok'?'Synced':s==='err'?'Offline':'Syncing…');
 }
 
 async function syncDown() {
-  setSyncStatus('spin');
+  if (!sheetUrl) return;
   try {
     const r = await fetch(sheetUrl+'?nc='+Date.now());
     if (!r.ok) throw 0;
     const txt = await r.text();
-    const rem = (txt&&txt!=='null'&&txt!=='{}') ? JSON.parse(txt) : {};
-    state.picks     = rem.picks     || {};
-    state.champions = rem.champions || {};
-    state.preds     = rem.preds     || {};
-    state.results   = rem.results   || {};
-    state.groups    = rem.groups    || {};
+    if (!txt || txt==='null' || txt.trim()==='' || txt.trim()==='{}') {
+      // Sheet is empty — push local state up to initialise it
+      await syncUp(true);
+      return;
+    }
+    const rem = JSON.parse(txt);
+    // Merge remote picks — but NEVER overwrite current player's own data
+    // Current player's data in localStorage is always the source of truth for them
+    ['picks','champions','preds'].forEach(key => {
+      const remData = rem[key] || {};
+      Object.entries(remData).forEach(([player, val]) => {
+        if (player === myName) return; // skip — never overwrite own data from sheet
+        if (val !== null && val !== undefined) {
+          state[key][player] = val;
+        }
+      });
+    });
+    saveLocal(); // persist merged state
     setSyncStatus('ok');
     renderAll();
-  } catch(e){ setSyncStatus('err'); }
+  } catch(e) {
+    setSyncStatus('err');
+  }
 }
 
-async function syncUp() {
-  setSyncStatus('spin');
+async function syncUp(silent) {
+  saveLocal(); // always save to device first — instant, works offline
+  if (!sheetUrl) {
+    if (!silent) toast('Saved on device ✓');
+    return;
+  }
+  if (!silent) setSyncStatus('spin','Saving…');
   try {
-    await fetch(sheetUrl,{method:'POST',body:JSON.stringify(state),headers:{'Content-Type':'application/json'}});
-    setSyncStatus('ok'); toast('Saved ✓');
-  } catch(e){ setSyncStatus('err'); toast('Sync failed'); }
+    const resp = await fetch(sheetUrl, {
+      method: 'POST',
+      body: JSON.stringify({ picks: state.picks, champions: state.champions, preds: state.preds }),
+      headers: {'Content-Type':'application/json'},
+    });
+    if (!resp.ok) throw 0;
+    setSyncStatus('ok');
+    if (!silent) toast('Saved ✓');
+  } catch(e) {
+    setSyncStatus('err');
+    if (!silent) toast('Saved on device — will sync when online');
+  }
 }
 
-function startSyncLoop(){
-  clearInterval(syncTimer);
-  syncTimer = setInterval(() => {
-    syncDown();           // sync picks/champs between players every 30s
-    fetchLiveScores();    // refresh live scores every 5 min
-  }, 300000); // 5 minutes
-  // Also sync picks every 30s separately
-  setInterval(syncDown, 30000);
+function startSyncLoop() {
+  setInterval(syncDown, 30000);        // sync picks between players every 30s
+  setInterval(fetchLiveScores, 300000); // refresh live scores every 5 min
 }
 
 // ══════════════════════════════════════
@@ -728,11 +805,14 @@ function setPick(grp,team){
   const pname=PLAYERS[pickPlayer];
   if(!state.picks[pname]) state.picks[pname]={};
   if(state.picks[pname][grp]===team) delete state.picks[pname][grp]; else state.picks[pname][grp]=team;
-  renderPicks(); syncUp();
+  saveLocal(); // instant — never lost
+  renderPicks();
+  syncUp();
 }
 function setChampion(team){
   const pname=PLAYERS[pickPlayer];
   state.champions[pname]=state.champions[pname]===team?null:team;
+  saveLocal(); // instant — never lost
   renderPicks(); renderStandings(); syncUp();
 }
 
@@ -813,7 +893,9 @@ function updPred(pname,matchId,side,val){
   if(!state.preds[pname]) state.preds[pname]={};
   if(!state.preds[pname][matchId]) state.preds[pname][matchId]={h:'',a:''};
   state.preds[pname][matchId][side]=val;
-  clearTimeout(updPred._t); updPred._t=setTimeout(syncUp,1400);
+  saveLocal(); // always save to device instantly — never lost
+  clearTimeout(updPred._t);
+  updPred._t=setTimeout(()=>syncUp(true),1400); // then quietly sync to sheet
 }
 
 function saveResult(id,home,away,stageKey){
@@ -838,6 +920,8 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
   myName=localStorage.getItem('wc26_who')||'';
   if(sheetUrl) document.getElementById('url-input').value=sheetUrl;
   if(myName)   document.getElementById('who-select').value=myName;
+  // Load saved picks immediately from localStorage — before any network call
+  loadLocal();
   if(sheetUrl&&myName) launch();
 })();
 </script>
