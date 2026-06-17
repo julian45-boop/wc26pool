@@ -342,7 +342,8 @@ async function fetchLiveScores() {
       if(h2>a2){s1.w++;s2.l++;} else if(h2<a2){s1.l++;s2.w++;} else{s1.d++;s2.d++;}
     });
 
-    setLiveStatus('ok', `Updated ${updated} results`);
+    setLiveStatus('ok', `Live scores loaded`);
+    rebuildGroupStats();
     renderAll();
   } catch(e) {
     setLiveStatus('warn','Scores unavailable');
@@ -400,32 +401,32 @@ const GROUPS = {
 
 const ALL_TEAMS = Object.values(GROUPS).flat();
 
-// Official results as of June 16 2026 (tournament day 6)
-// Plus today's matches (Jun 16) which are ongoing/upcoming
+// Official results as of June 17 2026 — hardcoded so they're always present
+// App also fetches live from openfootball on open to catch newer results
 const MATCHES = [
   // GROUP A
   {id:'A1',stage:'Group A',home:'Mexico',away:'South Africa',date:'Jun 11',rh:2,ra:0,played:true},
-  {id:'A2',stage:'Group A',home:'South Korea',away:'Czechia',date:'Jun 12',rh:2,ra:1,played:true},
+  {id:'A2',stage:'Group A',home:'South Korea',away:'Czechia',date:'Jun 11',rh:2,ra:1,played:true},
   {id:'A3',stage:'Group A',home:'Czechia',away:'South Africa',date:'Jun 18'},
-  {id:'A4',stage:'Group A',home:'Mexico',away:'South Korea',date:'Jun 19'},
-  {id:'A5',stage:'Group A',home:'Czechia',away:'Mexico',date:'Jun 25'},
-  {id:'A6',stage:'Group A',home:'South Africa',away:'South Korea',date:'Jun 25'},
+  {id:'A4',stage:'Group A',home:'Mexico',away:'South Korea',date:'Jun 18'},
+  {id:'A5',stage:'Group A',home:'Czechia',away:'Mexico',date:'Jun 24'},
+  {id:'A6',stage:'Group A',home:'South Africa',away:'South Korea',date:'Jun 24'},
   // GROUP B
   {id:'B1',stage:'Group B',home:'Canada',away:'Bosnia & Herz.',date:'Jun 12',rh:1,ra:1,played:true},
-  {id:'B2',stage:'Group B',home:'Qatar',away:'Switzerland',date:'Jun 13',rh:1,ra:1,played:true},
+  {id:'B2',stage:'Group B',home:'Switzerland',away:'Qatar',date:'Jun 13',rh:1,ra:1,played:true},
   {id:'B3',stage:'Group B',home:'Switzerland',away:'Bosnia & Herz.',date:'Jun 18'},
   {id:'B4',stage:'Group B',home:'Canada',away:'Qatar',date:'Jun 18'},
   {id:'B5',stage:'Group B',home:'Switzerland',away:'Canada',date:'Jun 24'},
   {id:'B6',stage:'Group B',home:'Bosnia & Herz.',away:'Qatar',date:'Jun 24'},
   // GROUP C
   {id:'C1',stage:'Group C',home:'Brazil',away:'Morocco',date:'Jun 13',rh:1,ra:1,played:true},
-  {id:'C2',stage:'Group C',home:'Haiti',away:'Scotland',date:'Jun 14',rh:0,ra:1,played:true},
-  {id:'C3',stage:'Group C',home:'Brazil',away:'Haiti',date:'Jun 19'},
-  {id:'C4',stage:'Group C',home:'Scotland',away:'Morocco',date:'Jun 19'},
+  {id:'C2',stage:'Group C',home:'Scotland',away:'Haiti',date:'Jun 13',rh:1,ra:0,played:true},
+  {id:'C3',stage:'Group C',home:'Scotland',away:'Morocco',date:'Jun 19'},
+  {id:'C4',stage:'Group C',home:'Brazil',away:'Haiti',date:'Jun 19'},
   {id:'C5',stage:'Group C',home:'Scotland',away:'Brazil',date:'Jun 24'},
   {id:'C6',stage:'Group C',home:'Morocco',away:'Haiti',date:'Jun 24'},
   // GROUP D
-  {id:'D1',stage:'Group D',home:'USA',away:'Paraguay',date:'Jun 13',rh:4,ra:1,played:true},
+  {id:'D1',stage:'Group D',home:'USA',away:'Paraguay',date:'Jun 12',rh:4,ra:1,played:true},
   {id:'D2',stage:'Group D',home:'Australia',away:'Türkiye',date:'Jun 14',rh:2,ra:0,played:true},
   {id:'D3',stage:'Group D',home:'USA',away:'Australia',date:'Jun 19'},
   {id:'D4',stage:'Group D',home:'Türkiye',away:'Paraguay',date:'Jun 20'},
@@ -459,23 +460,23 @@ const MATCHES = [
   {id:'H4',stage:'Group H',home:'Spain',away:'Saudi Arabia',date:'Jun 21'},
   {id:'H5',stage:'Group H',home:'Cape Verde',away:'Saudi Arabia',date:'Jun 27'},
   {id:'H6',stage:'Group H',home:'Uruguay',away:'Spain',date:'Jun 27'},
-  // GROUP I — TODAY Jun 16
-  {id:'I1',stage:'Group I',home:'France',away:'Senegal',date:'Jun 16 🔴 LIVE'},
-  {id:'I2',stage:'Group I',home:'Iraq',away:'Norway',date:'Jun 16 🔴 LIVE'},
+  // GROUP I
+  {id:'I1',stage:'Group I',home:'France',away:'Senegal',date:'Jun 16',rh:3,ra:1,played:true},
+  {id:'I2',stage:'Group I',home:'Iraq',away:'Norway',date:'Jun 16',rh:0,ra:1,played:true},
   {id:'I3',stage:'Group I',home:'Norway',away:'Senegal',date:'Jun 22'},
   {id:'I4',stage:'Group I',home:'France',away:'Iraq',date:'Jun 22'},
   {id:'I5',stage:'Group I',home:'Norway',away:'France',date:'Jun 26'},
   {id:'I6',stage:'Group I',home:'Senegal',away:'Iraq',date:'Jun 26'},
-  // GROUP J — TODAY Jun 16/17
-  {id:'J1',stage:'Group J',home:'Argentina',away:'Algeria',date:'Jun 16 🔴 LIVE'},
-  {id:'J2',stage:'Group J',home:'Austria',away:'Jordan',date:'Jun 17'},
+  // GROUP J
+  {id:'J1',stage:'Group J',home:'Argentina',away:'Algeria',date:'Jun 16',rh:4,ra:1,played:true},
+  {id:'J2',stage:'Group J',home:'Austria',away:'Jordan',date:'Jun 17',rh:3,ra:1,played:true},
   {id:'J3',stage:'Group J',home:'Argentina',away:'Austria',date:'Jun 22'},
   {id:'J4',stage:'Group J',home:'Jordan',away:'Algeria',date:'Jun 23'},
   {id:'J5',stage:'Group J',home:'Algeria',away:'Austria',date:'Jun 28'},
   {id:'J6',stage:'Group J',home:'Jordan',away:'Argentina',date:'Jun 28'},
   // GROUP K
   {id:'K1',stage:'Group K',home:'Portugal',away:'DR Congo',date:'Jun 17'},
-  {id:'K2',stage:'Group K',home:'Uzbekistan',away:'Colombia',date:'Jun 18'},
+  {id:'K2',stage:'Group K',home:'Uzbekistan',away:'Colombia',date:'Jun 17'},
   {id:'K3',stage:'Group K',home:'Portugal',away:'Uzbekistan',date:'Jun 23'},
   {id:'K4',stage:'Group K',home:'Colombia',away:'DR Congo',date:'Jun 24'},
   {id:'K5',stage:'Group K',home:'Colombia',away:'Portugal',date:'Jun 28'},
@@ -487,12 +488,12 @@ const MATCHES = [
   {id:'L4',stage:'Group L',home:'Panama',away:'Croatia',date:'Jun 23'},
   {id:'L5',stage:'Group L',home:'Panama',away:'England',date:'Jun 27'},
   {id:'L6',stage:'Group L',home:'Croatia',away:'Ghana',date:'Jun 27'},
-  // KNOCKOUT (shells)
-  {id:'R32_1',stage:'Round of 32',home:'TBD',away:'TBD',date:'Jul 1-3'},
-  {id:'R16_1',stage:'Round of 16',home:'TBD',away:'TBD',date:'Jul 7-9'},
-  {id:'QF1',stage:'Quarter Final',home:'TBD',away:'TBD',date:'Jul 13-14'},
-  {id:'SF1',stage:'Semi Final',home:'TBD',away:'TBD',date:'Jul 18-19'},
-  {id:'FIN',stage:'🏆 Final',home:'TBD',away:'TBD',date:'Jul 19'},
+  // KNOCKOUT
+  {id:'R32_1',stage:'Round of 32',home:'TBD',away:'TBD',date:'Jun 28 – Jul 3'},
+  {id:'R16_1',stage:'Round of 16',home:'TBD',away:'TBD',date:'Jul 4 – Jul 7'},
+  {id:'QF1',  stage:'Quarter Final',home:'TBD',away:'TBD',date:'Jul 9 – Jul 11'},
+  {id:'SF1',  stage:'Semi Final',home:'TBD',away:'TBD',date:'Jul 14 – Jul 15'},
+  {id:'FIN',  stage:'🏆 Final',home:'TBD',away:'TBD',date:'Jul 19'},
 ];
 
 // Pre-seed results from played matches
@@ -531,34 +532,47 @@ function launch() {
   document.getElementById('hero').classList.add('show');
   document.getElementById('bottom-nav').classList.add('show');
 
-  // 1. Load picks from localStorage IMMEDIATELY — user sees their data right away
+  // 1. Load picks from device instantly — never lost
   loadLocal();
+  // 2. Apply all hardcoded results & build group tables — always correct baseline
+  mergePresetResults();
+  // 3. Render immediately — user sees correct data before any network call
   renderAll();
-
-  // 2. Fetch live scores in background — updates groups/results when ready
+  // 4. Fetch newer results in background (catches matches played after last code update)
   fetchLiveScores();
-
-  // 3. Sync picks with Google Sheet in background — merges other players' picks
+  // 5. Sync other players' picks in background
   syncDown();
-
-  // 4. Start background loops
+  // 6. Keep refreshing
   startSyncLoop();
 }
 
-// Merge preset results into state without overwriting manually entered ones
+// Always apply hardcoded results — these are ground truth, never overwritten
 function mergePresetResults() {
-  Object.entries(PRESET_RESULTS).forEach(([id,r]) => {
-    if (!state.results[id]) state.results[id] = r;
+  MATCHES.forEach(m => {
+    if (m.played) {
+      state.results[m.id] = {h: m.rh, a: m.ra, played: true};
+    }
   });
-  // Rebuild group stats from results
-  Object.keys(GROUPS).forEach(grp => { state.groups[grp] = state.groups[grp] || {}; });
+  rebuildGroupStats();
+}
+
+// Rebuild group table stats from scratch using state.results
+function rebuildGroupStats() {
+  const fresh = {};
   MATCHES.forEach(m => {
     const r = state.results[m.id];
     if (!r?.played || !m.stage.startsWith('Group')) return;
     const grp = m.stage.split(' ')[1];
-    ensureGroupStat(grp, m.home);
-    ensureGroupStat(grp, m.away);
+    if (!fresh[grp]) fresh[grp] = {};
+    [m.home, m.away].forEach(t => { if (!fresh[grp][t]) fresh[grp][t] = {w:0,d:0,l:0,gf:0,ga:0}; });
+    const h = +r.h, a = +r.a;
+    fresh[grp][m.home].gf += h; fresh[grp][m.home].ga += a;
+    fresh[grp][m.away].gf += a; fresh[grp][m.away].ga += h;
+    if (h > a)      { fresh[grp][m.home].w++; fresh[grp][m.away].l++; }
+    else if (h < a) { fresh[grp][m.home].l++; fresh[grp][m.away].w++; }
+    else            { fresh[grp][m.home].d++; fresh[grp][m.away].d++; }
   });
+  state.groups = fresh;
 }
 
 // ══════════════════════════════════════
@@ -726,27 +740,9 @@ function ensureGroupStat(grp,team){
   if(!state.groups[grp][team]) state.groups[grp][team]={w:0,d:0,l:0,gf:0,ga:0};
 }
 
-function buildGroupStatsFromResults() {
-  // Reset and rebuild from all played matches
-  const fresh={};
-  MATCHES.forEach(m=>{
-    const r=state.results[m.id];
-    if(!r?.played||!m.stage.startsWith('Group')) return;
-    const grp=m.stage.split(' ')[1];
-    if(!fresh[grp]) fresh[grp]={};
-    [m.home,m.away].forEach(t=>{ if(!fresh[grp][t]) fresh[grp][t]={w:0,d:0,l:0,gf:0,ga:0}; });
-    const s1=fresh[grp][m.home], s2=fresh[grp][m.away];
-    const h=+r.h, a=+r.a;
-    s1.gf+=h; s1.ga+=a; s2.gf+=a; s2.ga+=h;
-    if(h>a){s1.w++;s2.l++;} else if(h<a){s1.l++;s2.w++;} else{s1.d++;s2.d++;}
-  });
-  return fresh;
-}
-
 function renderGroups() {
-  const stats=buildGroupStatsFromResults();
   document.getElementById('group-grid').innerHTML=Object.entries(GROUPS).map(([grp,teams])=>{
-    const gs=stats[grp]||{};
+    const gs=state.groups[grp]||{};
     const rows=teams.map(t=>{
       const s=gs[t.n]||{w:0,d:0,l:0,gf:0,ga:0};
       return {...t,...s,pts:s.w*3+s.d,gd:s.gf-s.ga};
@@ -902,6 +898,7 @@ function saveResult(id,home,away,stageKey){
   const h=document.getElementById('sh').value, a=document.getElementById('sa').value;
   if(h===''||a===''){toast('Enter both scores');return;}
   state.results[id]={h:+h,a:+a,played:true};
+  rebuildGroupStats();
   syncUp().then(()=>renderAll());
 }
 
